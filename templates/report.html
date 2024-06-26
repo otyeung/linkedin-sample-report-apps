@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LinkedIn Reporting MVP Apps</title>
+    <!-- Link to external CSS file -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>LinkedIn Reporting MVP Apps</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>Organization Name</th>
+          <th>Ad spent(USD)</th>
+          <th>Impressions</th>
+          <th>Clicks</th>
+          <th>Total Engagements</th>
+          <th>Total Conversions</th>
+          <th>View Through Conversions</th>
+          <th>Click Through Conversions</th>
+          <th>Leads</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in report_data %}
+        <tr>
+          <td>{{ row['companyName'] }}</td>
+          <td>{{ row['costInUsd'] }}</td>
+          <td>{{ row['impressions'] }}</td>
+          <td>{{ row['clicks'] }}</td>
+          <td>{{ row['totalEngagements'] }}</td>
+          <td>{{ row['externalWebsiteConversions'] }}</td>
+          <td>{{ row['externalWebsitePostViewConversions'] }}</td>
+          <td>{{ row['externalWebsitePostClickConversions'] }}</td>
+          <td>{{ row['oneClickLeads'] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>
