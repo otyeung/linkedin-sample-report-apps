@@ -1,5 +1,6 @@
 import requests
-from flask import Flask, redirect, request, session, url_for, render_template, jsonify
+from flask import Flask, redirect, request, session, url_for, render_template, jsonify, send_file
+import io
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
 from flask_wtf.csrf import CSRFProtect
 import os
@@ -46,8 +47,6 @@ END_TIME = int(datetime.now().timestamp() * 1000)
 class User(UserMixin):
     def __init__(self, user_id):
         self.id = user_id
-
-app = Flask(__name__)
 
 # Generate a secure secret key
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
@@ -127,7 +126,13 @@ def authorized():
     try:
         report_data = fetch_ads_report(access_token, CMT_ACCOUNT_ID)
         logging.info(f"Report Data: {report_data}")
-        return render_template('report.html', report_data=report_data)
+
+        if report_data:
+            session['report_data_list'] = report_data  # Store the data in session
+            return render_template('report.html', report_data=report_data)
+        else:
+            return "No report data available.", 400
+
     except requests.exceptions.RequestException as req_err:
         logging.error(f"Request error: {req_err}")
         return jsonify({"error": "Request error", "message": str(req_err)}), 500
@@ -170,7 +175,7 @@ def fetch_linkedin_profile(access_token, api_version):
     email = email_data['elements'][0]['handle~']['emailAddress']
     return profile_data, email
 
-def fetch_ads_report(access_token, account_id):
+def fetch_ads_report(access_token, account_ids):
     headers = {
         'Authorization': f"Bearer {access_token}",
         'cache-control': 'no-cache',
@@ -181,50 +186,59 @@ def fetch_ads_report(access_token, account_id):
     end_date = datetime.now()
     start_date = end_date - timedelta(days=60)
 
+    # Ensure account_ids is a list
+    if isinstance(account_ids, str):
+        account_ids = account_ids.split(',')
+
+    accounts_list = ",".join([f"urn%3Ali%3AsponsoredAccount%3A{account_id.strip()}" for account_id in account_ids])
+
+    logging.info(f"accounts_list: {accounts_list}")
+
     report_api_url = (
         f'https://api.linkedin.com/rest/adAnalytics?q=analytics'
         f'&dateRange=(start:(year:{start_date.year},month:{start_date.month},day:{start_date.day}),'
         f'end:(year:{end_date.year},month:{end_date.month},day:{end_date.day}))'
         f'&timeGranularity=(value:ALL)'
-        f'&accounts=List(urn%3Ali%3AsponsoredAccount%3A{account_id})'
+        f'&accounts=List({accounts_list})'
         f'&pivot=MEMBER_COMPANY'
-        f'&fields=pivotValues,costInUsd,impressions,clicks,totalEngagements,externalWebsiteConversions,'
-        f'externalWebsitePostViewConversions,externalWebsitePostClickConversions,oneClickLeads'
+        f'&fields=pivotValues,costInUsd,impressions,clicks,comments,commentLikes,follows,likes,opens,reactions,sends,shares,companyPageClicks,'
+        f'totalEngagements,otherEngagements,viralOtherEngagements,viralTotalEngagements,externalWebsitePostViewConversions,externalWebsitePostClickConversions,oneClickLeads'
     )
 
     logging.info(f"Report API URL: {report_api_url}")
-    response = requests.get(report_api_url, headers=headers)
-    response.raise_for_status()  # Raise an exception for HTTP errors
 
-    report_data = response.json().get('elements', [])
-    df = pd.DataFrame(report_data)
+    try:
+        response = requests.get(report_api_url, headers=headers)
+        response.raise_for_status()  # Raise an exception for HTTP errors
 
-    df['pivotValues'] = df['pivotValues'].apply(lambda x: x[0] if x else None)
-    df.rename(columns={'pivotValues': 'organizationUrn'}, inplace=True)
+        report_data = response.json().get('elements', [])
+        df = pd.DataFrame(report_data)
 
-    organization_ids = df['organizationUrn'].str.split(':').str[-1]
-    organization_lookup_url = f'https://api.linkedin.com/rest/organizationsLookup?ids=List({",".join(organization_ids)})'
-    response = requests.get(organization_lookup_url, headers=headers)
+        df['pivotValues'] = df['pivotValues'].apply(lambda x: x[0] if x else None)
+        df.rename(columns={'pivotValues': 'organizationUrn'}, inplace=True)
 
-    company_names = {}
-    if response.status_code == 200:
-        json_data = response.json()
-        for org_id, org_data in json_data['results'].items():
-            company_names[org_id] = org_data['localizedName']
+        organization_ids = df['organizationUrn'].str.split(':').str[-1]
+        organization_lookup_url = f'https://api.linkedin.com/rest/organizationsLookup?ids=List({",".join(organization_ids)})'
+        response = requests.get(organization_lookup_url, headers=headers)
 
-    df['companyName'] = df['organizationUrn'].str.split(':').str[-1].map(company_names.get)
+        company_names = {}
+        if response.status_code == 200:
+            json_data = response.json()
+            for org_id, org_data in json_data['results'].items():
+                company_names[org_id] = org_data['localizedName']
 
-    # Format the costInUsd to two decimal places
-    if 'costInUsd' in df.columns:
-        df['costInUsd'] = pd.to_numeric(df['costInUsd'], errors='coerce')  # coerce errors to NaN
+        df['companyName'] = df['organizationUrn'].str.split(':').str[-1].map(company_names.get)
 
         # Format the costInUsd to two decimal places
-        df['costInUsd'] = df['costInUsd'].apply(lambda x: f"{x:.2f}" if not pd.isnull(x) else None)
+        if 'costInUsd' in df.columns:
+            df['costInUsd'] = pd.to_numeric(df['costInUsd'], errors='coerce')  # coerce errors to NaN
+            df['costInUsd'] = df['costInUsd'].apply(lambda x: f"{x:.2f}" if not pd.isnull(x) else None)
 
+        return df.to_dict(orient='records')  # Return DataFrame as dictionary
 
-    report_data_list = df.to_dict(orient='records')
-
-    return report_data_list
+    except requests.exceptions.RequestException as req_err:
+        logging.error(f"Request error: {req_err}")
+        return None  # Handle the error gracefully
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
