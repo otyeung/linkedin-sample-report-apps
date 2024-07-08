@@ -11,6 +11,10 @@ import secrets
 from dotenv import dotenv_values
 from pathlib import Path
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(level=logging.DEBUG)
+
 # Determine the correct .env file path
 env_path = Path('.env.local') if Path('.env.local').exists() else Path('.env')
 print(f"Loading {env_path} file")
@@ -20,9 +24,9 @@ env_vars = dotenv_values(dotenv_path=env_path)
 
 # Debug function to print environment variables
 def print_env_vars():
-    print("Environment variables after loading:")
+    logging.debug("Environment variables after loading:")
     for key, value in env_vars.items():
-        print(f"{key}: {value}")
+        logging.debug(f"{key}: {value}")
 
 print_env_vars()  # Print environment variables after loading
 
@@ -38,9 +42,11 @@ API_VERSION = env_vars.get('API_VERSION')
 AUTHORIZATION_URL = 'https://www.linkedin.com/oauth/v2/authorization'
 TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken'
 
-# Lead sync parameters
+# Report parameters
 CMT_ACCOUNT_ID = env_vars.get('CMT_ACCOUNT_ID')
-START_TIME = int((datetime.now() - timedelta(days=30)).timestamp() * 1000)
+CMT_CAMPAIGN_ID = env_vars.get('CMT_CAMPAIGN_ID')
+REPORT_PERIOD = int(env_vars.get('REPORT_PERIOD'))
+START_TIME = int((datetime.now() - timedelta(days=REPORT_PERIOD)).timestamp() * 1000)
 END_TIME = int(datetime.now().timestamp() * 1000)
 
 # User class for Flask-Login
@@ -53,9 +59,6 @@ app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -108,7 +111,7 @@ def authorized():
     session['linkedin_token'] = access_token
 
     # Print the access token to the console
-    print(f"Access Token: {session['linkedin_token']}")
+    logging.debug(f"Access Token: {session['linkedin_token']}")
 
     profile_data, email = fetch_linkedin_profile(access_token, API_VERSION)
     if not profile_data or not email:
@@ -118,14 +121,14 @@ def authorized():
     first_name = profile_data['localizedFirstName']
     last_name = profile_data['localizedLastName']
 
-    logging.info(f"{user_id}, {first_name} {last_name}, Logged in with email: {email}")
+    logging.debug(f"{user_id}, {first_name} {last_name}, Logged in with email: {email}")
 
     user = User(user_id)
     login_user(user)
 
     try:
-        report_data = fetch_ads_report(access_token, CMT_ACCOUNT_ID)
-        logging.info(f"Report Data: {report_data}")
+        report_data = fetch_ads_report(access_token, CMT_ACCOUNT_ID, CMT_CAMPAIGN_ID)
+        logging.debug(f"Report Data: {report_data}")
 
         if report_data:
             session['report_data_list'] = report_data  # Store the data in session
@@ -175,7 +178,7 @@ def fetch_linkedin_profile(access_token, api_version):
     email = email_data['elements'][0]['handle~']['emailAddress']
     return profile_data, email
 
-def fetch_ads_report(access_token, account_ids):
+def fetch_ads_report(access_token, account_ids, campaign_ids):
     headers = {
         'Authorization': f"Bearer {access_token}",
         'cache-control': 'no-cache',
@@ -184,15 +187,22 @@ def fetch_ads_report(access_token, account_ids):
     }
 
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=60)
+    start_date = end_date - timedelta(days=REPORT_PERIOD)
 
     # Ensure account_ids is a list
     if isinstance(account_ids, str):
         account_ids = account_ids.split(',')
-
     accounts_list = ",".join([f"urn%3Ali%3AsponsoredAccount%3A{account_id.strip()}" for account_id in account_ids])
-
     logging.info(f"accounts_list: {accounts_list}")
+
+    # Initialize campaigns_list as an empty string
+    campaigns_list = ''
+
+    # Ensure campaign_ids is a list and not empty
+    if isinstance(campaign_ids, str) and campaign_ids != '':
+        campaign_ids = campaign_ids.split(',')
+        campaigns_list = ",".join([f"urn%3Ali%3AsponsoredCampaign%3A{campaign_id.strip()}" for campaign_id in campaign_ids])
+        logging.info(f"campaigns_list: {campaigns_list}")
 
     report_api_url = (
         f'https://api.linkedin.com/rest/adAnalytics?q=analytics'
@@ -200,6 +210,14 @@ def fetch_ads_report(access_token, account_ids):
         f'end:(year:{end_date.year},month:{end_date.month},day:{end_date.day}))'
         f'&timeGranularity=(value:ALL)'
         f'&accounts=List({accounts_list})'
+    )
+
+    # Add campaigns_list to report_api_url if not empty
+    if campaigns_list:
+        report_api_url += f'&campaigns=List({campaigns_list})'
+
+    # Add the rest of parameters to report_api_url
+    report_api_url += (
         f'&pivot=MEMBER_COMPANY'
         f'&fields=pivotValues,costInUsd,impressions,clicks,comments,commentLikes,follows,likes,opens,reactions,sends,shares,companyPageClicks,'
         f'totalEngagements,otherEngagements,viralOtherEngagements,viralTotalEngagements,externalWebsitePostViewConversions,externalWebsitePostClickConversions,oneClickLeads'
@@ -207,11 +225,21 @@ def fetch_ads_report(access_token, account_ids):
 
     logging.info(f"Report API URL: {report_api_url}")
 
+    # Generate curl command for debug message
+    curl_command = f"curl -X GET '{report_api_url}' -H 'Authorization: Bearer {access_token}' -H 'X-Restli-Protocol-Version: 2.0.0' -H 'LinkedIn-Version: {API_VERSION}'"
+    logging.debug(f"curl command for API request:\n{curl_command}")
+
     try:
         response = requests.get(report_api_url, headers=headers)
         response.raise_for_status()  # Raise an exception for HTTP errors
 
         report_data = response.json().get('elements', [])
+
+        if not report_data:  # Handle case where report_data is empty
+            error_message = "No report data available."
+            logging.error(error_message)
+            return error_message  # Return the error message to handle on screen
+
         df = pd.DataFrame(report_data)
 
         df['pivotValues'] = df['pivotValues'].apply(lambda x: x[0] if x else None)
