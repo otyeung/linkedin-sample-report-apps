@@ -130,15 +130,20 @@ def authorized():
         report_data = fetch_ads_report(access_token, CMT_ACCOUNT_ID, CMT_CAMPAIGN_ID)
         logging.debug(f"Report Data: {report_data}")
 
-        if report_data:
-            session['report_data_list'] = report_data  # Store the data in session
-            return render_template('report.html', report_data=report_data)
-        else:
-            return "No report data available.", 400
+        if not report_data:
+            raise ValueError("No report data available.")  # Raise custom exception
+
+        session['report_data_list'] = report_data  # Store the data in session
+        return render_template('report.html', report_data=report_data)
+
+    except ValueError as ve:
+        logging.error(f"ValueError: {str(ve)}")
+        return str(ve), 400  # Return the error message to the user interface
 
     except requests.exceptions.RequestException as req_err:
         logging.error(f"Request error: {req_err}")
         return jsonify({"error": "Request error", "message": str(req_err)}), 500
+
 
 @app.route('/')
 def index():
@@ -236,9 +241,7 @@ def fetch_ads_report(access_token, account_ids, campaign_ids):
         report_data = response.json().get('elements', [])
 
         if not report_data:  # Handle case where report_data is empty
-            error_message = "No report data available."
-            logging.error(error_message)
-            return error_message  # Return the error message to handle on screen
+            raise ValueError("No report data available.")  # Raise custom exception
 
         df = pd.DataFrame(report_data)
 
