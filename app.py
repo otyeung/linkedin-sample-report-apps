@@ -229,6 +229,9 @@ def fetch_ads_report(access_token, account_ids):
 
         df['companyName'] = df['organizationUrn'].str.split(':').str[-1].map(company_names.get)
 
+        # Remove rows where companyName is None
+        df = df[df['companyName'].notna()]
+
         # Format the costInUsd to two decimal places
         if 'costInUsd' in df.columns:
             df['costInUsd'] = pd.to_numeric(df['costInUsd'], errors='coerce')  # coerce errors to NaN

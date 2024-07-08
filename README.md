@@ -33,7 +33,7 @@ Developer is welcome to build on top of it to add more functionality and polish 
 
 5. Copy your client id, client secret from developer portal to .env file. You should set the API_VERSION to the latest one according to [LinkedIn API documentation](https://learn.microsoft.com/en-us/linkedin/marketing/versioning?view=li-lms-2024-06) in the format "YYYYMM", it should NOT be older than 12 months from current date. Just put it in HTTP header "Linkedin-Version".
 
-6. Add your LinkedIn Ads account id in .env file, "12345678". If you have multiple ads accounts simply separate them by commas, e.g. "12345678,23456789"
+6. Add your LinkedIn Ads account id in .env file, "12345678". If you have multiple ads accounts simply separate them by commas without space, e.g. "12345678,23456789,34567890" and the report metrics will be aggregrated.
 
 7. Provision redirect_url (http://127.0.0.1:5000/login/authorized) in the apps under LinkedIn developer portal. This is NECESSARY to complete the OAuth 3-legged redirect flow.
    ![redirect_url](screenshots/redirect_url.png)
@@ -44,7 +44,7 @@ Developer is welcome to build on top of it to add more functionality and polish 
 9. Open Chrome web browser in incognito window (or clear all caches and cookies from linkedin.com, www.linkedin.com, 127.0.0.1)
    `http://127.0.0.1:5000/`
 
-10. This app will retreive following ABM engagement metrics [analytics finder, MEMBER_COMPANY pivot](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/ads-reporting?view=li-lms-2024-05&tabs=http#statistics-finder) in the past 60 days
+10. This app will retreive following ABM engagement metrics [analytics finder, MEMBER_COMPANY pivot](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/ads-reporting?view=li-lms-2024-05&tabs=http#statistics-finder) in the past 30 days
 
 - costInUsd
 - impressions
