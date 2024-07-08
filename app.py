@@ -45,9 +45,6 @@ TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken'
 # Report parameters
 CMT_ACCOUNT_ID = env_vars.get('CMT_ACCOUNT_ID')
 CMT_CAMPAIGN_ID = env_vars.get('CMT_CAMPAIGN_ID')
-REPORT_PERIOD = int(env_vars.get('REPORT_PERIOD'))
-START_TIME = int((datetime.now() - timedelta(days=REPORT_PERIOD)).timestamp() * 1000)
-END_TIME = int(datetime.now().timestamp() * 1000)
 
 # User class for Flask-Login
 class User(UserMixin):
