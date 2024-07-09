@@ -11,7 +11,7 @@ While MVP apps is not a full-blown production apps, developer is welcome to buil
 ## Pre-requistie
 
 1. Create an app from [LinkedIn developer portal](https://developer.linkedin.com)
-2. Make sure the app have added the required product. If it doesn't please request access. ![redirect_url](screenshots/advertising_api.png)
+2. Make sure the app have added the "Advertising API" product. If it doesn't please request access. ![advertising api](screenshots/advertising_api.png)
 3. Create [LinkedIn Ads account](https://www.linkedin.com/help/linkedin/answer/a426102/create-an-ad-account-in-campaign-manager-as-a-new-advertiser). Ads account should include historic / current campaign performance data
 4. Assume all the above requirements are met, developer should be able to spin up a MVP apps in 5 minutes.
 
