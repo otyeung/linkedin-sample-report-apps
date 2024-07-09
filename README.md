@@ -108,7 +108,7 @@ REPORT_PERIOD=60
 - externalWebsitePostClickConversions
 - oneClickLeads
 
-Analytics finder API can use only 1 pivot (MEMBER_COMPANY), if developer wants to see the ABM report for individual campaigns, please use campaign filter in the API, make multiple API calls and combine all results. Pay attention to [data restrictions](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/ads-reporting?view=li-lms-2024-06&tabs=http#restrictions) of minimum 3 events to be reported.
+Analytics finder API can use only 1 pivot (MEMBER_COMPANY), if developer wants to see the ABM report for individual campaigns, please use campaign filter in the API, make multiple API calls and combine all results. Pay attention to [data restrictions](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/ads-reporting?view=li-lms-2024-06&tabs=http#restrictions) of minimum threshold 3 events to be reported, and there is a limit of max 20 metrics to be included in one API call.
 
 ## Limitations and Further Enhancements
 
