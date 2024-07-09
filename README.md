@@ -113,7 +113,7 @@ Analytics finder API can use only 1 pivot (MEMBER_COMPANY), if developer wants t
 ## Limitations and Further Enhancements
 
 1. To further enhance the apps, developer may persist the access token in the apps and implement [token refresh](https://learn.microsoft.com/en-gb/linkedin/shared/authentication/authorization-code-flow?context=linkedin%2Fcontext&tabs=HTTPS1#step-5-refresh-access-token) routine before existing access token expires
-2. Developer may implement the UI logic to save the results to database or CSV/Excel files
+2. Developer may implement the UI logic to export the results to database, CSV/Excel files, or email the report data
 3. Developer may implement the UI logic to specifiy time period of report and implement a scheduler to run the apps
 
 ## Troubleshooting
